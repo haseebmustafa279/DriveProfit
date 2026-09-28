@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "64453928430",
+    "project_id": "drive-profit-c8b2d",
+    "storage_bucket": "drive-profit-c8b2d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:64453928430:android:c22a54e5a7b7904c01daff",
+        "android_client_info": {
+          "package_name": "com.driveprofit"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "64453928430-ceb1vdlqf9mf8a6jq87tgmo21i499u2l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.driveprofit",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "64453928430-dmpafamrcnofni5lqia01d96ttlmvlmm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANBopTJssKti2LqmJtXti2GK4vR8Xd9p8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "64453928430-dmpafamrcnofni5lqia01d96ttlmvlmm.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "64453928430-3blrir01f9h9qubjj369rjjl029gjjq7.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.driveprofit"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

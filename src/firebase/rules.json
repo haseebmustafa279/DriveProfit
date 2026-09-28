@@ -1,0 +1,164 @@
+/**
+ * Firestore Security Rules
+ * Deploy this to Firebase Console > Firestore > Rules
+ * 
+ * These rules enforce:
+ * 1. Only authenticated users can access data
+ * 2. Users can only access their own daily records
+ * 3. Monthly and car data is scoped to private or explicitly shared workspaces
+ * 4. Users cannot modify their own role
+ * 5. All operations are authenticated
+ */
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwnUID(uid) {
+      return request.auth.uid == uid;
+    }
+    
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isWorkspaceMember(workspaceId) {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/workspaces/$(workspaceId))
+        && request.auth.uid in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.memberUids;
+    }
+
+    function isAuthorizedSharedMember(workspaceId) {
+      return workspaceId == 'father-son'
+        && isWorkspaceMember(workspaceId)
+        && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.type == 'fatherSon'
+        && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.memberUids.size() == 2
+        && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.memberUids[0]
+          != get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.memberUids[1]
+        && (
+          (
+            get(/databases/$(database)/documents/users/
+              $(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.memberUids[0])).data.role == 'father'
+            && get(/databases/$(database)/documents/users/
+              $(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.memberUids[1])).data.role == 'son'
+          ) || (
+            get(/databases/$(database)/documents/users/
+              $(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.memberUids[0])).data.role == 'son'
+            && get(/databases/$(database)/documents/users/
+              $(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.memberUids[1])).data.role == 'father'
+          )
+        )
+        && userRole() in ['father', 'son'];
+    }
+
+    function isPrivateWorkspace(workspaceId) {
+      return isAuthenticated() && workspaceId == 'private-' + request.auth.uid;
+    }
+
+    function canAccessWorkspace(workspaceId) {
+      return isPrivateWorkspace(workspaceId)
+        || isAuthorizedSharedMember(workspaceId);
+    }
+    
+    // Users collection
+    // Each user document is keyed by their Firebase UID
+    match /users/{uid} {
+      // Can only read own profile
+      allow read: if isAuthenticated() && isOwnUID(uid);
+      
+      // Can only write own profile, cannot modify role
+      allow create: if isAuthenticated() && isOwnUID(uid)
+        && request.resource.data.role == 'pending'
+        && request.resource.data.privateWorkspaceId == 'private-' + uid;
+      
+      allow update: if isAuthenticated() && isOwnUID(uid)
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.privateWorkspaceId == resource.data.privateWorkspaceId;
+      
+      allow delete: if false; // Never allow user deletion from client
+    }
+    
+    // Daily records - Private to each user
+    // Father can only access Father's records
+    // Son can only access Son's records
+    match /dailyRecords/{recordId} {
+      // Can only read own records
+      allow read: if isAuthenticated() 
+        && request.auth.uid == resource.data.userId;
+      
+      // Can only create records for yourself
+      allow create: if isAuthenticated()
+        && request.auth.uid == request.resource.data.userId
+        && request.resource.data.type in ['income', 'expense']
+        && request.resource.data.amount is int
+        && request.resource.data.amount > 0;
+      
+      // Can only update own records
+      allow update: if isAuthenticated()
+        && request.auth.uid == resource.data.userId
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.type in ['income', 'expense']
+        && request.resource.data.amount is int
+        && request.resource.data.amount > 0;
+      
+      // Can only delete own records
+      allow delete: if isAuthenticated()
+        && request.auth.uid == resource.data.userId;
+    }
+    
+    // Monthly records - scoped to a private or shared workspace
+    match /monthlyRecords/{recordId} {
+      allow read: if resource.data.keys().hasAll(['workspaceId'])
+        && canAccessWorkspace(resource.data.workspaceId);
+      
+      allow create: if isAuthenticated()
+        && request.resource.data.keys().hasAll(['workspaceId'])
+        && canAccessWorkspace(request.resource.data.workspaceId)
+        && request.resource.data.type in ['profit', 'carExpense']
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.amount is int
+        && request.resource.data.amount > 0;
+      
+      allow update: if resource.data.keys().hasAll(['workspaceId'])
+        && request.resource.data.workspaceId == resource.data.workspaceId
+        && canAccessWorkspace(resource.data.workspaceId)
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.type in ['profit', 'carExpense']
+        && request.resource.data.amount is int
+        && request.resource.data.amount > 0
+        && request.resource.data.updatedBy == request.auth.uid;
+      
+      allow delete: if resource.data.keys().hasAll(['workspaceId'])
+        && canAccessWorkspace(resource.data.workspaceId);
+    }
+
+    // Workspace membership is provisioned by an administrator only.
+    match /workspaces/{workspaceId} {
+      allow read: if isWorkspaceMember(workspaceId);
+      allow write: if false;
+    }
+
+    // Each private or authorized shared workspace has an independent tracker.
+    match /carTrackers/{workspaceId} {
+      allow read: if canAccessWorkspace(workspaceId);
+      allow create, update: if canAccessWorkspace(workspaceId)
+        && request.resource.data.workspaceId == workspaceId
+        && request.resource.data.purchasePrice is int
+        && request.resource.data.purchasePrice > 0;
+      allow delete: if false;
+    }
+    
+    // App settings - Read for all authenticated users
+    // Typically updated only through admin SDK
+    match /appSettings/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Only admin SDK can write
+    }
+  }
+}

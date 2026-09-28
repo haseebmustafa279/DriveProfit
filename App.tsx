@@ -1,45 +1,40 @@
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
+ * DriveProfit - Car Income, Expense & Profit Management App
+ * 
+ * Main application entry point
+ * Sets up Firebase, Authentication, and Navigation
  */
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import React from 'react';
+import { StatusBar } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider } from './src/hooks/useAuth';
+import { RootNavigator } from './src/navigation/RootNavigator';
+import { COLORS } from './src/constants/theme';
+import { initializeFirebase } from './src/firebase/config';
+
+// Initialize Firebase
+initializeFirebase();
 
 function App() {
-  const isDarkMode = useColorScheme() === 'dark';
-
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <StatusBar
+        {...({
+          barStyle: 'light-content',
+          backgroundColor: COLORS.primary,
+          translucent: false,
+        } as {
+          barStyle: 'light-content';
+          backgroundColor: string;
+          translucent: boolean;
+        })}
+      />
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
-
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
 
 export default App;
