@@ -2,6 +2,8 @@ import React from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,7 +13,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { useDailyRecords } from '../../hooks/useDailyRecords';
-import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { DailyRecord, EntryType } from '../../types/records';
 import {
   formatDateForDisplay,
@@ -142,16 +144,31 @@ export const DailyRecordsScreen: React.FC = () => {
   };
 
   const renderRecord = (record: DailyRecord) => (
-    <View key={record.id} style={styles.recordRow}>
+    <View
+      key={record.id}
+      style={[styles.recordRow, record.type === 'income' ? styles.incomeRecord : styles.expenseRecord]}
+    >
       <View style={styles.recordDetails}>
         <Text style={styles.recordDescription}>{record.description}</Text>
-        <Text style={styles.recordAmount}>{formatRupees(record.amount)}</Text>
+        <Text style={[styles.recordAmount, record.type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
+          {formatRupees(record.amount)}
+        </Text>
       </View>
       <View style={styles.recordActions}>
-        <TouchableOpacity onPress={() => openEditForm(record)} style={styles.actionButton}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${record.type} record: ${record.description}`}
+          onPress={() => openEditForm(record)}
+          style={styles.actionButton}
+        >
           <Text style={styles.actionText}>Edit</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleDelete(record)} style={styles.actionButton}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${record.type} record: ${record.description}`}
+          onPress={() => handleDelete(record)}
+          style={styles.actionButton}
+        >
           <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
         </TouchableOpacity>
       </View>
@@ -161,118 +178,188 @@ export const DailyRecordsScreen: React.FC = () => {
   const renderSection = (title: string, type: EntryType, sectionRecords: DailyRecord[]) => (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => openAddForm(type)}>
-          <Text style={styles.addButtonText}>+ Add {type === 'income' ? 'Income' : 'Expense'}</Text>
+        <View style={styles.sectionHeading}>
+          <View style={[styles.sectionMark, type === 'income' ? styles.incomeMark : styles.expenseMark]} />
+          <Text style={[styles.sectionTitle, type === 'income' ? styles.incomeTitle : styles.expenseTitle]}>{title}</Text>
+        </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`Add ${type} record`}
+          style={[styles.addButton, type === 'income' ? styles.incomeAddButton : styles.expenseAddButton]}
+          onPress={() => openAddForm(type)}
+        >
+          <Text style={styles.addButtonText}>+ Add</Text>
         </TouchableOpacity>
       </View>
       {sectionRecords.length > 0 ? (
         sectionRecords.map(renderRecord)
-      ) : (
-        <Text style={styles.emptyText}>No {type} records for this date.</Text>
-      )}
+      ) : !isLoading ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>No {type} records</Text>
+          <Text style={styles.emptyText}>Add an entry to start tracking this day.</Text>
+        </View>
+      ) : null}
     </View>
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.title}>Daily Records</Text>
-
-      <View style={styles.dateNavigation}>
-        <TouchableOpacity
-          accessibilityLabel="Previous date"
-          style={styles.dateButton}
-          onPress={() => changeDate(getPreviousDay(safeSelectedDate))}
-        >
-          <Text style={styles.dateButtonText}>{'<'}</Text>
-        </TouchableOpacity>
-        <Text style={styles.dateText}>{formatDateForDisplay(safeSelectedDate)}</Text>
-        <TouchableOpacity
-          accessibilityLabel="Next date"
-          style={[styles.dateButton, nextDate > todayTimestamp && styles.disabledDateButton]}
-          onPress={() => {
-            if (nextDate <= todayTimestamp) {
-              changeDate(getNextDay(safeSelectedDate));
-            }
-          }}
-          disabled={nextDate > todayTimestamp}
-        >
-          <Text style={styles.dateButtonText}>{'>'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.summary}>
-        <SummaryItem label="Total Income" value={totalIncome} color={COLORS.income} />
-        <SummaryItem label="Total Expenses" value={totalExpenses} color={COLORS.expense} />
-        <SummaryItem label="Daily Profit" value={dailyProfit} color={dailyProfit < 0 ? COLORS.loss : COLORS.profit} />
-      </View>
-
-      {isLoading ? <ActivityIndicator color={COLORS.primary} style={styles.loader} /> : null}
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-      {formType ? (
-        <View style={styles.form}>
-          <Text style={styles.formTitle}>{editingRecord ? 'Edit Entry' : `Add ${formType === 'income' ? 'Income' : 'Expense'}`}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Description or name"
-            placeholderTextColor={COLORS.hintText}
-            value={description}
-            onChangeText={setDescription}
-            autoCapitalize="sentences"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Amount (Rs.)"
-            placeholderTextColor={COLORS.hintText}
-            value={amount}
-            onChangeText={value => setAmount(value.replace(/[^0-9]/g, ''))}
-            keyboardType="number-pad"
-          />
-          {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
-          <View style={styles.formActions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={closeForm} disabled={isSaving}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+    <KeyboardAvoidingView
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.screenContent}>
+          <View style={styles.dateNavigation}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Previous day, ${formatDateForDisplay(getPreviousDay(safeSelectedDate))}`}
+              style={styles.dateButton}
+              onPress={() => changeDate(getPreviousDay(safeSelectedDate))}
+            >
+              <View style={[styles.chevronShape, styles.previousChevron]} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={isSaving}>
-              {isSaving ? <ActivityIndicator color={COLORS.lightBg} /> : <Text style={styles.saveButtonText}>Save</Text>}
+            <Text style={styles.dateText}>{formatDateForDisplay(safeSelectedDate)}</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Next day, ${formatDateForDisplay(getNextDay(safeSelectedDate))}`}
+              accessibilityState={{ disabled: nextDate > todayTimestamp }}
+              style={[styles.dateButton, nextDate > todayTimestamp && styles.disabledDateButton]}
+              onPress={() => {
+                if (nextDate <= todayTimestamp) {
+                  changeDate(getNextDay(safeSelectedDate));
+                }
+              }}
+              disabled={nextDate > todayTimestamp}
+            >
+              <View style={styles.chevronShape} />
             </TouchableOpacity>
           </View>
-        </View>
-      ) : null}
 
-      {renderSection('Income', 'income', records.income)}
-      {renderSection('Expenses', 'expense', records.expenses)}
-    </ScrollView>
+          <View style={styles.summary}>
+            <SummaryItem label="Income" value={totalIncome} color={COLORS.income} />
+            <SummaryItem label="Expenses" value={totalExpenses} color={COLORS.expense} />
+            <SummaryItem
+              label="Daily Profit"
+              value={dailyProfit}
+              color={dailyProfit < 0 ? COLORS.loss : COLORS.profit}
+              emphasized
+            />
+          </View>
+
+          {isLoading ? (
+            <View style={styles.loadingState} accessibilityRole="progressbar" accessibilityLabel="Loading daily records">
+              <ActivityIndicator color={COLORS.primary} />
+              <Text style={styles.loadingText}>Loading records…</Text>
+            </View>
+          ) : null}
+          {error ? (
+            <View style={styles.errorBanner} accessibilityRole="alert">
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {formType ? (
+            <View style={[styles.form, formType === 'income' ? styles.incomeForm : styles.expenseForm]}>
+              <Text style={styles.formTitle}>
+                {editingRecord ? 'Edit Entry' : `Add ${formType === 'income' ? 'Income' : 'Expense'}`}
+              </Text>
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                accessibilityLabel={`${formType === 'income' ? 'Income' : 'Expense'} description`}
+                style={styles.input}
+                placeholder="Description or name"
+                placeholderTextColor={COLORS.hintText}
+                value={description}
+                onChangeText={setDescription}
+                autoCapitalize="sentences"
+              />
+              <Text style={styles.inputLabel}>Amount (Rs.)</Text>
+              <TextInput
+                accessibilityLabel={`${formType === 'income' ? 'Income' : 'Expense'} amount in rupees`}
+                style={styles.input}
+                placeholder="Enter amount"
+                placeholderTextColor={COLORS.hintText}
+                value={amount}
+                onChangeText={value => setAmount(value.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+              />
+              {formError ? (
+                <View style={styles.errorBanner} accessibilityRole="alert">
+                  <Text style={styles.errorText}>{formError}</Text>
+                </View>
+              ) : null}
+              <View style={styles.formActions}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel entry"
+                  style={styles.cancelButton}
+                  onPress={closeForm}
+                  disabled={isSaving}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={isSaving ? 'Saving entry' : 'Save entry'}
+                  accessibilityState={{ disabled: isSaving, busy: isSaving }}
+                  style={[styles.saveButton, isSaving && styles.disabledSaveButton]}
+                  onPress={handleSave}
+                  disabled={isSaving}
+                >
+                  {isSaving ? <ActivityIndicator color={COLORS.lightBg} /> : <Text style={styles.saveButtonText}>Save</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+
+          {renderSection('Income', 'income', records.income)}
+          {renderSection('Expenses', 'expense', records.expenses)}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
-const SummaryItem: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
-  <View style={styles.summaryItem}>
-    <Text style={styles.summaryLabel}>{label}</Text>
-    <Text style={[styles.summaryValue, { color }]}>{formatRupees(value)}</Text>
+const SummaryItem: React.FC<{ label: string; value: number; color: string; emphasized?: boolean }> = ({
+  label,
+  value,
+  color,
+  emphasized = false,
+}) => (
+  <View style={[styles.summaryItem, emphasized && styles.summaryProfitItem]}>
+    <Text style={[styles.summaryLabel, emphasized && styles.summaryProfitLabel]}>{label}</Text>
+    <Text style={[styles.summaryValue, emphasized && styles.summaryProfitValue, { color }]}>{formatRupees(value)}</Text>
   </View>
 );
 
 const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.lightBg,
   },
   contentContainer: {
-    padding: SPACING.md,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.lg,
     paddingBottom: SPACING.xxl,
   },
-  title: {
-    color: COLORS.darkText,
-    fontSize: TYPOGRAPHY.fontSize.h2,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    marginBottom: SPACING.md,
-    textAlign: 'center',
+  screenContent: {
+    width: '100%',
+    maxWidth: 640,
   },
   dateNavigation: {
     alignItems: 'center',
     flexDirection: 'row',
+    gap: SPACING.sm,
     justifyContent: 'space-between',
     marginBottom: SPACING.md,
   },
@@ -280,61 +367,120 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.full,
-    height: 40,
+    height: 48,
     justifyContent: 'center',
-    width: 40,
-  },
-  dateButtonText: {
-    color: COLORS.lightBg,
-    fontSize: TYPOGRAPHY.fontSize.h3,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    width: 48,
   },
   disabledDateButton: {
     backgroundColor: COLORS.lightText,
   },
+  chevronShape: {
+    borderColor: COLORS.lightBg,
+    borderRightWidth: 2,
+    borderTopWidth: 2,
+    height: 9,
+    transform: [{ rotate: '45deg' }],
+    width: 9,
+  },
+  previousChevron: {
+    transform: [{ rotate: '-135deg' }],
+  },
   dateText: {
     color: COLORS.darkText,
+    flex: 1,
+    flexShrink: 1,
     fontSize: TYPOGRAPHY.fontSize.h3,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    textAlign: 'center',
   },
   summary: {
     backgroundColor: COLORS.cardBg,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.lg,
-    padding: SPACING.md,
+    padding: SPACING.sm,
+    ...SHADOWS.sm,
   },
   summaryItem: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: 44,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
+  },
+  summaryProfitItem: {
+    backgroundColor: COLORS.lightBg,
+    borderRadius: BORDER_RADIUS.sm,
+    borderLeftWidth: 4,
+    marginTop: SPACING.xs,
+    paddingLeft: SPACING.md,
   },
   summaryLabel: {
     color: COLORS.mediumText,
+    flexShrink: 1,
     fontSize: TYPOGRAPHY.fontSize.body,
   },
-  summaryValue: {
-    fontSize: TYPOGRAPHY.fontSize.body,
+  summaryProfitLabel: {
+    color: COLORS.darkText,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
-  loader: {
-    marginVertical: SPACING.md,
+  summaryValue: {
+    flexShrink: 0,
+    fontSize: TYPOGRAPHY.fontSize.body,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    marginLeft: SPACING.sm,
+    textAlign: 'right',
+  },
+  summaryProfitValue: {
+    fontSize: TYPOGRAPHY.fontSize.h4,
+  },
+  loadingState: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+  },
+  loadingText: {
+    color: COLORS.mediumText,
+    fontSize: TYPOGRAPHY.fontSize.body,
+  },
+  errorBanner: {
+    backgroundColor: `${COLORS.error}15`,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
   },
   errorText: {
     color: COLORS.error,
-    fontSize: TYPOGRAPHY.fontSize.caption,
-    marginBottom: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.body,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   form: {
     backgroundColor: COLORS.cardBg,
     borderRadius: BORDER_RADIUS.md,
+    borderLeftWidth: 4,
     marginBottom: SPACING.lg,
     padding: SPACING.md,
+    ...SHADOWS.sm,
+  },
+  incomeForm: {
+    borderLeftColor: COLORS.income,
+  },
+  expenseForm: {
+    borderLeftColor: COLORS.expense,
   },
   formTitle: {
     color: COLORS.darkText,
     fontSize: TYPOGRAPHY.fontSize.h4,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  inputLabel: {
+    color: COLORS.darkText,
+    fontSize: TYPOGRAPHY.fontSize.body,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    marginTop: SPACING.sm,
   },
   input: {
     backgroundColor: COLORS.lightBg,
@@ -343,38 +489,47 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: COLORS.darkText,
     fontSize: TYPOGRAPHY.fontSize.body,
-    marginTop: SPACING.sm,
+    minHeight: 48,
+    marginTop: SPACING.xs,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
   },
   formActions: {
     flexDirection: 'row',
     gap: SPACING.sm,
-    justifyContent: 'flex-end',
     marginTop: SPACING.md,
   },
   cancelButton: {
+    alignItems: 'center',
     borderColor: COLORS.mediumText,
     borderRadius: BORDER_RADIUS.sm,
     borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 48,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
   },
   cancelButtonText: {
     color: COLORS.mediumText,
+    fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   saveButton: {
+    alignItems: 'center',
     backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.sm,
-    minWidth: 80,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 48,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+  },
+  disabledSaveButton: {
+    opacity: 0.7,
   },
   saveButtonText: {
     color: COLORS.lightBg,
+    fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    textAlign: 'center',
   },
   section: {
     marginBottom: SPACING.lg,
@@ -385,37 +540,90 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: SPACING.sm,
   },
+  sectionHeading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 1,
+    gap: SPACING.sm,
+  },
+  sectionMark: {
+    borderRadius: BORDER_RADIUS.full,
+    height: 10,
+    width: 10,
+  },
+  incomeMark: {
+    backgroundColor: COLORS.income,
+  },
+  expenseMark: {
+    backgroundColor: COLORS.expense,
+  },
   sectionTitle: {
-    color: COLORS.darkText,
     fontSize: TYPOGRAPHY.fontSize.h3,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
+  incomeTitle: {
+    color: COLORS.income,
+  },
+  expenseTitle: {
+    color: COLORS.expense,
+  },
   addButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.sm,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.md,
+    justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 88,
+    paddingHorizontal: SPACING.md,
+  },
+  incomeAddButton: {
+    backgroundColor: COLORS.income,
+  },
+  expenseAddButton: {
+    backgroundColor: COLORS.expense,
   },
   addButtonText: {
     color: COLORS.lightBg,
-    fontSize: TYPOGRAPHY.fontSize.caption,
+    fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
+  },
+  emptyState: {
+    backgroundColor: COLORS.cardBg,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+  },
+  emptyTitle: {
+    color: COLORS.darkText,
+    fontSize: TYPOGRAPHY.fontSize.body,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   emptyText: {
     color: COLORS.mediumText,
-    fontSize: TYPOGRAPHY.fontSize.body,
-    paddingVertical: SPACING.md,
+    fontSize: TYPOGRAPHY.fontSize.caption,
+    marginTop: SPACING.xs,
   },
   recordRow: {
     alignItems: 'center',
-    borderBottomColor: COLORS.dividerColor,
-    borderBottomWidth: 1,
+    backgroundColor: COLORS.lightBg,
+    borderColor: COLORS.dividerColor,
+    borderRadius: BORDER_RADIUS.md,
+    borderLeftWidth: 3,
+    borderWidth: 1,
     flexDirection: 'row',
+    gap: SPACING.sm,
     justifyContent: 'space-between',
-    paddingVertical: SPACING.md,
+    marginBottom: SPACING.sm,
+    padding: SPACING.sm,
+    ...SHADOWS.sm,
+  },
+  incomeRecord: {
+    borderLeftColor: COLORS.income,
+  },
+  expenseRecord: {
+    borderLeftColor: COLORS.expense,
   },
   recordDetails: {
     flex: 1,
+    minWidth: 0,
   },
   recordDescription: {
     color: COLORS.darkText,
@@ -423,17 +631,27 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   recordAmount: {
-    color: COLORS.mediumText,
-    fontSize: TYPOGRAPHY.fontSize.caption,
+    fontSize: TYPOGRAPHY.fontSize.h4,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
     marginTop: SPACING.xs,
+  },
+  incomeAmount: {
+    color: COLORS.income,
+  },
+  expenseAmount: {
+    color: COLORS.expense,
   },
   recordActions: {
     flexDirection: 'row',
-    marginLeft: SPACING.sm,
+    flexShrink: 0,
+    gap: SPACING.xs,
   },
   actionButton: {
-    marginLeft: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 52,
+    paddingHorizontal: SPACING.xs,
   },
   actionText: {
     color: COLORS.primary,
