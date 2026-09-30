@@ -66,17 +66,21 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.headerSection}>
-          <Text style={styles.appTitle}>DriveProfit</Text>
-          <Text style={styles.appSubtitle}>Income & Expense Management</Text>
+          <Text style={styles.appTitle} accessibilityRole="header">DriveProfit</Text>
+          <Text style={styles.appSubtitle}>Income &amp; Expense Management</Text>
         </View>
 
         <View style={styles.formSection}>
+          <Text style={styles.formTitle} accessibilityRole="header">Sign in to continue</Text>
+
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
             <TextInput
               style={[styles.input, validationError && styles.inputError]}
+              accessibilityLabel="Email"
               placeholder="Enter your email"
               placeholderTextColor={COLORS.hintText}
               value={email}
@@ -85,6 +89,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
+              returnKeyType="next"
             />
           </View>
 
@@ -92,6 +97,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <Text style={styles.label}>Password</Text>
             <PasswordInput
               inputStyle={[styles.input, validationError && styles.inputError]}
+              accessibilityLabel="Password"
               placeholder="Enter your password"
               placeholderTextColor={COLORS.hintText}
               value={password}
@@ -102,19 +108,23 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
 
           {validationError && (
-            <View style={styles.errorContainer}>
+            <View style={styles.errorContainer} accessibilityRole="alert">
               <Text style={styles.errorText}>{validationError}</Text>
             </View>
           )}
 
           {state.error && (
-            <View style={styles.errorContainer}>
+            <View style={styles.errorContainer} accessibilityRole="alert">
               <Text style={styles.errorText}>{state.error}</Text>
             </View>
           )}
 
           <TouchableOpacity
             style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in"
+            accessibilityState={{ disabled: isLoading, busy: isLoading }}
+            activeOpacity={0.82}
             onPress={handleLogin}
             disabled={isLoading}
           >
@@ -125,11 +135,25 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} disabled={isLoading}>
+          <TouchableOpacity
+            style={styles.linkButton}
+            accessibilityRole="button"
+            accessibilityLabel="Forgot password"
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('ForgotPassword')}
+            disabled={isLoading}
+          >
             <Text style={styles.linkText}>Forgot Password?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')} disabled={isLoading}>
+          <TouchableOpacity
+            style={styles.linkButton}
+            accessibilityRole="button"
+            accessibilityLabel="Create account"
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('CreateAccount')}
+            disabled={isLoading}
+          >
             <Text style={styles.linkText}>Create Account</Text>
           </TouchableOpacity>
         </View>
@@ -146,12 +170,15 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.xl,
+    paddingVertical: SPACING.lg,
   },
   headerSection: {
+    width: '100%',
+    maxWidth: 440,
     alignItems: 'center',
-    marginBottom: SPACING.xxl,
+    marginBottom: SPACING.xl,
   },
   appTitle: {
     fontSize: TYPOGRAPHY.fontSize.h1,
@@ -162,9 +189,19 @@ const styles = StyleSheet.create({
   appSubtitle: {
     fontSize: TYPOGRAPHY.fontSize.body,
     color: COLORS.mediumText,
+    textAlign: 'center',
+  },
+  formTitle: {
+    fontSize: TYPOGRAPHY.fontSize.h3,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.darkText,
+    textAlign: 'center',
+    marginBottom: SPACING.xs,
   },
   formSection: {
-    gap: SPACING.lg,
+    width: '100%',
+    maxWidth: 440,
+    gap: SPACING.md,
   },
   inputContainer: {
     gap: SPACING.sm,
@@ -175,11 +212,12 @@ const styles = StyleSheet.create({
     color: COLORS.darkText,
   },
   input: {
+    minHeight: 56,
     borderWidth: 1,
     borderColor: COLORS.dividerColor,
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
     fontSize: TYPOGRAPHY.fontSize.body,
     color: COLORS.darkText,
     backgroundColor: COLORS.cardBg,
@@ -200,9 +238,10 @@ const styles = StyleSheet.create({
   loginButton: {
     backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.md,
-    paddingVertical: SPACING.md,
+    minHeight: 56,
     alignItems: 'center',
-    marginTop: SPACING.lg,
+    justifyContent: 'center',
+    marginTop: SPACING.sm,
   },
   loginButtonDisabled: {
     opacity: 0.7,
@@ -217,5 +256,11 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
     textAlign: 'center',
+  },
+  linkButton: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.sm,
   },
 });
