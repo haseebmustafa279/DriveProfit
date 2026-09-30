@@ -19,7 +19,8 @@ interface UseCarDataReturn {
 export const useCarData = (workspaceId: string): UseCarDataReturn => {
   const [allMonthlyRecords, setAllMonthlyRecords] = useState<MonthlyRecord[]>([]);
   const [purchasePrice, setPurchasePrice] = useState(CAR_CONFIG.purchasePrice);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadedWorkspaceId, setLoadedWorkspaceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Subscribe to all monthly records for car tracking
@@ -30,6 +31,7 @@ export const useCarData = (workspaceId: string): UseCarDataReturn => {
     setPurchasePrice(CAR_CONFIG.purchasePrice);
 
     if (!workspaceId) {
+      setLoadedWorkspaceId(workspaceId);
       setIsLoading(false);
       return () => {};
     }
@@ -44,9 +46,11 @@ export const useCarData = (workspaceId: string): UseCarDataReturn => {
       workspaceId,
       (records: MonthlyRecord[]) => {
         setAllMonthlyRecords(records);
+        setLoadedWorkspaceId(workspaceId);
         setIsLoading(false);
       },
       listenerError => {
+        setLoadedWorkspaceId(workspaceId);
         setIsLoading(false);
         setError(listenerError.message);
       }
@@ -81,7 +85,7 @@ export const useCarData = (workspaceId: string): UseCarDataReturn => {
 
   return {
     carData,
-    isLoading,
+    isLoading: isLoading || loadedWorkspaceId !== workspaceId,
     error,
     refreshCarData,
   };

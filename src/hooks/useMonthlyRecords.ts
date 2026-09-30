@@ -21,8 +21,10 @@ interface UseMonthlyRecordsReturn {
 
 export const useMonthlyRecords = (monthKey: string, workspaceId: string): UseMonthlyRecordsReturn => {
   const [records, setRecords] = useState<MonthlyRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const scopeKey = `${workspaceId}:${monthKey}`;
 
   // Subscribe to real-time updates
   useEffect(() => {
@@ -35,9 +37,11 @@ export const useMonthlyRecords = (monthKey: string, workspaceId: string): UseMon
       workspaceId,
       (monthlyRecords: MonthlyRecord[]) => {
         setRecords(monthlyRecords);
+        setLoadedScopeKey(scopeKey);
         setIsLoading(false);
       },
       listenerError => {
+        setLoadedScopeKey(scopeKey);
         setIsLoading(false);
         setError(listenerError.message);
       }
@@ -46,7 +50,7 @@ export const useMonthlyRecords = (monthKey: string, workspaceId: string): UseMon
     return () => {
       unsubscribe();
     };
-  }, [monthKey, workspaceId]);
+  }, [monthKey, scopeKey, workspaceId]);
 
   // Calculate totals
   const calculations = calculateMonthlyTotals(records);
@@ -109,7 +113,7 @@ export const useMonthlyRecords = (monthKey: string, workspaceId: string): UseMon
   return {
     records,
     calculations,
-    isLoading,
+    isLoading: isLoading || loadedScopeKey !== scopeKey,
     error,
     addRecord,
     updateRecord,

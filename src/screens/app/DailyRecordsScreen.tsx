@@ -191,9 +191,9 @@ export const DailyRecordsScreen: React.FC = () => {
           <Text style={styles.addButtonText}>+ Add</Text>
         </TouchableOpacity>
       </View>
-      {sectionRecords.length > 0 ? (
+      {!isLoading && sectionRecords.length > 0 ? (
         sectionRecords.map(renderRecord)
-      ) : !isLoading ? (
+      ) : !isLoading && !error ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>No {type} records</Text>
           <Text style={styles.emptyText}>Add an entry to start tracking this day.</Text>
@@ -241,16 +241,18 @@ export const DailyRecordsScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.summary}>
-            <SummaryItem label="Income" value={totalIncome} color={COLORS.income} />
-            <SummaryItem label="Expenses" value={totalExpenses} color={COLORS.expense} />
-            <SummaryItem
-              label="Daily Profit"
-              value={dailyProfit}
-              color={dailyProfit < 0 ? COLORS.loss : COLORS.profit}
-              emphasized
-            />
-          </View>
+          {!isLoading && !error ? (
+            <View style={styles.summary}>
+              <SummaryItem label="Income" value={totalIncome} color={COLORS.income} />
+              <SummaryItem label="Expenses" value={totalExpenses} color={COLORS.expense} />
+              <SummaryItem
+                label="Daily Profit"
+                value={dailyProfit}
+                color={dailyProfit < 0 ? COLORS.loss : COLORS.profit}
+                emphasized
+              />
+            </View>
+          ) : null}
 
           {isLoading ? (
             <View style={styles.loadingState} accessibilityRole="progressbar" accessibilityLabel="Loading daily records">
@@ -655,7 +657,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     color: COLORS.primary,
-    fontSize: TYPOGRAPHY.fontSize.caption,
+    fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   deleteText: {

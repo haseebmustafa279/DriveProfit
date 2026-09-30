@@ -32,7 +32,8 @@ interface UseDailyRecordsReturn {
 
 export const useDailyRecords = (_userId: string, dateTimestamp: number): UseDailyRecordsReturn => {
   const [allRecords, setAllRecords] = useState<DailyRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadedDateTimestamp, setLoadedDateTimestamp] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Subscribe to real-time updates
@@ -44,9 +45,11 @@ export const useDailyRecords = (_userId: string, dateTimestamp: number): UseDail
       dateTimestamp,
       (records: DailyRecord[]) => {
         setAllRecords(records);
+        setLoadedDateTimestamp(dateTimestamp);
         setIsLoading(false);
       },
       listenerError => {
+        setLoadedDateTimestamp(dateTimestamp);
         setIsLoading(false);
         setError(listenerError.message);
       }
@@ -136,7 +139,7 @@ export const useDailyRecords = (_userId: string, dateTimestamp: number): UseDail
     totalIncome,
     totalExpenses,
     dailyProfit,
-    isLoading,
+    isLoading: isLoading || loadedDateTimestamp !== dateTimestamp,
     error,
     addRecord,
     updateRecord,

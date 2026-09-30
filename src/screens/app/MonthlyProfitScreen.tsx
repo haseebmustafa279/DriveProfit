@@ -241,9 +241,9 @@ export const MonthlyProfitScreen: React.FC = () => {
           <Text style={styles.addButtonText}>+ Add</Text>
         </TouchableOpacity>
       </View>
-      {sectionRecords.length > 0 ? (
+      {!isLoading && sectionRecords.length > 0 ? (
         sectionRecords.map(renderRecord)
-      ) : !isLoading ? (
+      ) : !isLoading && !error ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>No {type === 'profit' ? 'profit' : 'car expense'} entries</Text>
           <Text style={styles.emptyText}>Add an entry to start tracking this month.</Text>
@@ -301,17 +301,19 @@ export const MonthlyProfitScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.summary} accessibilityLabel="Monthly profit summary">
-            <SummaryItem label="Gross Profit" value={calculations.grossProfit} color={COLORS.profit} />
-            <SummaryItem label="Car Expenses" value={calculations.carExpenses} color={COLORS.expense} />
-            <Text style={styles.summaryEquation}>Gross Profit - Car Expenses = Net Profit</Text>
-            <SummaryItem
-              label="Net Monthly Profit"
-              value={calculations.netMonthlyProfit}
-              color={calculations.netMonthlyProfit >= 0 ? COLORS.profit : COLORS.loss}
-              emphasized
-            />
-          </View>
+          {!isLoading && !error ? (
+            <View style={styles.summary} accessibilityLabel="Monthly profit summary">
+              <SummaryItem label="Gross Profit" value={calculations.grossProfit} color={COLORS.profit} />
+              <SummaryItem label="Car Expenses" value={calculations.carExpenses} color={COLORS.expense} />
+              <Text style={styles.summaryEquation}>Gross Profit - Car Expenses = Net Profit</Text>
+              <SummaryItem
+                label="Net Monthly Profit"
+                value={calculations.netMonthlyProfit}
+                color={calculations.netMonthlyProfit >= 0 ? COLORS.profit : COLORS.loss}
+                emphasized
+              />
+            </View>
+          ) : null}
 
           {isLoading ? (
             <View style={styles.loadingState} accessibilityRole="progressbar" accessibilityLabel="Loading monthly records">

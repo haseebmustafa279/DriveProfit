@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../hooks/useAuth';
-import { COLORS } from '../constants/theme';
+import { COLORS, TYPOGRAPHY } from '../constants/theme';
 
 // Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -48,8 +48,8 @@ export const RootNavigator: React.FC = () => {
             },
             headerTintColor: COLORS.lightBg,
             headerTitleStyle: {
-              fontWeight: 'bold',
-              fontSize: 18,
+              fontWeight: TYPOGRAPHY.fontWeight.bold,
+              fontSize: TYPOGRAPHY.fontSize.h4,
             },
             headerShadowVisible: false,
           }}

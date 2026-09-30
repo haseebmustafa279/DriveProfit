@@ -53,7 +53,6 @@ export const Module3PinScreen: React.FC<{ navigation: any }> = ({ navigation }) 
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          <Text style={styles.title}>Secure Access</Text>
           <Text style={styles.description}>Enter your PIN to open the car payment tracker.</Text>
           <TextInput
             accessibilityLabel="Module 3 PIN"
@@ -102,13 +101,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
   },
-  title: {
-    color: COLORS.darkText,
-    fontSize: TYPOGRAPHY.fontSize.h2,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    marginBottom: SPACING.xs,
-    textAlign: 'center',
-  },
   description: {
     color: COLORS.mediumText,
     fontSize: TYPOGRAPHY.fontSize.body,
@@ -139,10 +131,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'center',
     backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: BORDER_RADIUS.md,
     justifyContent: 'center',
     marginTop: SPACING.xl,
-    minHeight: 52,
+    minHeight: 56,
     minWidth: 180,
     paddingHorizontal: SPACING.lg,
   },
