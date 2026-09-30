@@ -6,6 +6,8 @@ import React from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,7 +18,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useMonthlyRecords } from '../../hooks/useMonthlyRecords';
 import { useWorkspaceScope } from '../../hooks/useWorkspaceScope';
-import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { MonthlyEntryType, MonthlyRecord } from '../../types/records';
 import {
   endOfMonth,
@@ -191,17 +193,32 @@ export const MonthlyProfitScreen: React.FC = () => {
   };
 
   const renderRecord = (record: MonthlyRecord) => (
-    <View key={record.id} style={styles.recordRow}>
+    <View
+      key={record.id}
+      style={[styles.recordRow, record.type === 'profit' ? styles.profitRecord : styles.expenseRecord]}
+    >
       <View style={styles.recordDetails}>
         <Text style={styles.recordDate}>{format(new Date(record.date), 'd MMM yyyy')}</Text>
-        <Text style={styles.recordDescription}>{record.description}</Text>
-        <Text style={styles.recordAmount}>{formatRupees(record.amount)}</Text>
+        <Text style={styles.recordDescription} numberOfLines={2}>{record.description}</Text>
+        <Text style={[styles.recordAmount, record.type === 'profit' ? styles.profitAmount : styles.expenseAmount]}>
+          {formatRupees(record.amount)}
+        </Text>
       </View>
       <View style={styles.recordActions}>
-        <TouchableOpacity onPress={() => openEditForm(record)} style={styles.actionButton}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${record.type === 'profit' ? 'profit' : 'car expense'} record: ${record.description}`}
+          onPress={() => openEditForm(record)}
+          style={styles.actionButton}
+        >
           <Text style={styles.actionText}>Edit</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleDelete(record)} style={styles.actionButton}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${record.type === 'profit' ? 'profit' : 'car expense'} record: ${record.description}`}
+          onPress={() => handleDelete(record)}
+          style={styles.actionButton}
+        >
           <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
         </TouchableOpacity>
       </View>
@@ -211,211 +228,374 @@ export const MonthlyProfitScreen: React.FC = () => {
   const renderSection = (title: string, type: MonthlyEntryType, sectionRecords: MonthlyRecord[]) => (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => openAddForm(type)}>
-          <Text style={styles.addButtonText}>+ Add {type === 'profit' ? 'Profit' : 'Expense'}</Text>
+        <View style={styles.sectionHeading}>
+          <View style={[styles.sectionMark, type === 'profit' ? styles.profitMark : styles.expenseMark]} />
+          <Text style={[styles.sectionTitle, type === 'profit' ? styles.profitTitle : styles.expenseTitle]}>{title}</Text>
+        </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`Add ${type === 'profit' ? 'profit' : 'car expense'} record`}
+          style={[styles.addButton, type === 'profit' ? styles.profitAddButton : styles.expenseAddButton]}
+          onPress={() => openAddForm(type)}
+        >
+          <Text style={styles.addButtonText}>+ Add</Text>
         </TouchableOpacity>
       </View>
       {sectionRecords.length > 0 ? (
         sectionRecords.map(renderRecord)
-      ) : (
-        <Text style={styles.emptyText}>No {type === 'profit' ? 'profit' : 'car expense'} entries for this month.</Text>
-      )}
+      ) : !isLoading ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>No {type === 'profit' ? 'profit' : 'car expense'} entries</Text>
+          <Text style={styles.emptyText}>Add an entry to start tracking this month.</Text>
+        </View>
+      ) : null}
     </View>
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.title}>Monthly Profit</Text>
-
-      <View style={styles.monthNavigation}>
-        <TouchableOpacity
-          style={[styles.navButton, !isCurrentMonth && styles.navButtonActive]}
-          onPress={navigateToPreviousMonth}
-        >
-          <Text style={styles.navButtonText}>Previous</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.currentMonthButton, isCurrentMonth && styles.currentMonthButtonDisabled]}
-          onPress={() => setSelectedMonth(startOfMonth(new Date()))}
-          disabled={isCurrentMonth}
-        >
-          <Text style={styles.currentMonthButtonText}>Current Month</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.navButton, !isCurrentMonth && styles.navButtonActive]}
-          onPress={navigateToNextMonth}
-          disabled={isCurrentMonth}
-        >
-          <Text style={styles.navButtonText}>Next</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.selectedMonth}>{formatMonthForDisplay(selectedMonth)}</Text>
-
-      <View style={styles.summary}>
-        <SummaryItem label="Gross Monthly Profit" value={calculations.grossProfit} color={COLORS.profit} />
-        <SummaryItem label="Total Car Expenses" value={calculations.carExpenses} color={COLORS.expense} />
-        <SummaryItem label="Net Monthly Profit" value={calculations.netMonthlyProfit} color={calculations.netMonthlyProfit >= 0 ? COLORS.profit : COLORS.loss} />
-      </View>
-
-      {isLoading ? <ActivityIndicator color={COLORS.primary} style={styles.loader} /> : null}
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-      {formType ? (
-        <View style={styles.form}>
-          <Text style={styles.formTitle}>{editingRecord ? 'Edit Entry' : `Add ${formType === 'profit' ? 'Profit' : 'Car Expense'}`}</Text>
-
-          <View style={styles.dateRow}>
-            <TouchableOpacity style={styles.dateChangeButton} onPress={() => moveEntryDate(-1)}>
-              <Text style={styles.dateChangeText}>{'<'}</Text>
+    <KeyboardAvoidingView
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.screenContent}>
+          <View style={styles.monthNavigation}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Previous month, ${formatMonthForDisplay(getPreviousMonth(selectedMonth))}`}
+              style={styles.navButton}
+              onPress={navigateToPreviousMonth}
+            >
+              <View style={[styles.chevronShape, styles.previousChevron]} />
             </TouchableOpacity>
-            <Text style={styles.dateText}>{format(entryDate, 'd MMM yyyy')}</Text>
-            <TouchableOpacity style={styles.dateChangeButton} onPress={() => moveEntryDate(1)}>
-              <Text style={styles.dateChangeText}>{'>'}</Text>
+            <Text style={styles.selectedMonth} accessibilityLiveRegion="polite">
+              {formatMonthForDisplay(selectedMonth)}
+            </Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Next month, ${formatMonthForDisplay(getNextMonth(selectedMonth))}`}
+              accessibilityState={{ disabled: isCurrentMonth }}
+              style={[styles.navButton, isCurrentMonth && styles.disabledNavButton]}
+              onPress={navigateToNextMonth}
+              disabled={isCurrentMonth}
+            >
+              <View style={styles.chevronShape} />
             </TouchableOpacity>
           </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Return to current month"
+            accessibilityState={{ disabled: isCurrentMonth }}
+            style={styles.currentMonthButton}
+            onPress={() => setSelectedMonth(startOfMonth(new Date()))}
+            disabled={isCurrentMonth}
+          >
+            <Text style={[styles.currentMonthButtonText, isCurrentMonth && styles.disabledCurrentMonthText]}>
+              Current Month
+            </Text>
+          </TouchableOpacity>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Description"
-            placeholderTextColor={COLORS.hintText}
-            value={description}
-            onChangeText={setDescription}
-            autoCapitalize="sentences"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Amount (Rs.)"
-            placeholderTextColor={COLORS.hintText}
-            value={amount}
-            onChangeText={value => setAmount(value.replace(/[^0-9]/g, ''))}
-            keyboardType="number-pad"
-          />
-          {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
-          <View style={styles.formActions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={closeForm} disabled={isSaving}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={isSaving}>
-              {isSaving ? <ActivityIndicator color={COLORS.lightBg} /> : <Text style={styles.saveButtonText}>Save</Text>}
-            </TouchableOpacity>
+          <View style={styles.summary} accessibilityLabel="Monthly profit summary">
+            <SummaryItem label="Gross Profit" value={calculations.grossProfit} color={COLORS.profit} />
+            <SummaryItem label="Car Expenses" value={calculations.carExpenses} color={COLORS.expense} />
+            <Text style={styles.summaryEquation}>Gross Profit - Car Expenses = Net Profit</Text>
+            <SummaryItem
+              label="Net Monthly Profit"
+              value={calculations.netMonthlyProfit}
+              color={calculations.netMonthlyProfit >= 0 ? COLORS.profit : COLORS.loss}
+              emphasized
+            />
           </View>
+
+          {isLoading ? (
+            <View style={styles.loadingState} accessibilityRole="progressbar" accessibilityLabel="Loading monthly records">
+              <ActivityIndicator color={COLORS.primary} />
+              <Text style={styles.loadingText}>Loading monthly records…</Text>
+            </View>
+          ) : null}
+          {error ? (
+            <View style={styles.errorBanner} accessibilityRole="alert">
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+          {formError && !formType ? (
+            <View style={styles.errorBanner} accessibilityRole="alert">
+              <Text style={styles.errorText}>{formError}</Text>
+            </View>
+          ) : null}
+
+          {formType ? (
+            <View style={[styles.form, formType === 'profit' ? styles.profitForm : styles.expenseForm]}>
+              <Text style={styles.formTitle}>{editingRecord ? 'Edit Entry' : `Add ${formType === 'profit' ? 'Profit' : 'Car Expense'}`}</Text>
+
+              <Text style={styles.inputLabel}>Entry date</Text>
+              <View style={styles.dateRow}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous entry date"
+                  style={styles.dateChangeButton}
+                  onPress={() => moveEntryDate(-1)}
+                >
+                  <View style={[styles.chevronShape, styles.previousChevron]} />
+                </TouchableOpacity>
+                <Text style={styles.dateText}>{format(entryDate, 'd MMM yyyy')}</Text>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Next entry date"
+                  style={styles.dateChangeButton}
+                  onPress={() => moveEntryDate(1)}
+                >
+                  <View style={styles.chevronShape} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                accessibilityLabel={`${formType === 'profit' ? 'Profit' : 'Car expense'} description`}
+                style={styles.input}
+                placeholder="Description"
+                placeholderTextColor={COLORS.hintText}
+                value={description}
+                onChangeText={setDescription}
+                autoCapitalize="sentences"
+              />
+              <Text style={styles.inputLabel}>Amount (Rs.)</Text>
+              <TextInput
+                accessibilityLabel={`${formType === 'profit' ? 'Profit' : 'Car expense'} amount in rupees`}
+                style={styles.input}
+                placeholder="Enter amount"
+                placeholderTextColor={COLORS.hintText}
+                value={amount}
+                onChangeText={value => setAmount(value.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+              />
+              {formError ? (
+                <View style={styles.errorBanner} accessibilityRole="alert">
+                  <Text style={styles.errorText}>{formError}</Text>
+                </View>
+              ) : null}
+              <View style={styles.formActions}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel entry"
+                  accessibilityState={{ disabled: isSaving }}
+                  style={styles.cancelButton}
+                  onPress={closeForm}
+                  disabled={isSaving}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={isSaving ? 'Saving entry' : 'Save entry'}
+                  accessibilityState={{ disabled: isSaving, busy: isSaving }}
+                  style={[styles.saveButton, isSaving && styles.disabledSaveButton]}
+                  onPress={handleSave}
+                  disabled={isSaving}
+                >
+                  {isSaving ? <ActivityIndicator color={COLORS.lightBg} /> : <Text style={styles.saveButtonText}>Save</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+
+          {renderSection('Profit', 'profit', profitRecords)}
+          {renderSection('Car Expense', 'carExpense', expenseRecords)}
         </View>
-      ) : null}
-
-      {renderSection('Profit', 'profit', profitRecords)}
-      {renderSection('Car Expense', 'carExpense', expenseRecords)}
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
-const SummaryItem: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
-  <View style={styles.summaryItem}>
-    <Text style={styles.summaryLabel}>{label}</Text>
-    <Text style={[styles.summaryValue, { color }]}>{formatRupees(value)}</Text>
+const SummaryItem: React.FC<{ label: string; value: number; color: string; emphasized?: boolean }> = ({
+  label,
+  value,
+  color,
+  emphasized = false,
+}) => (
+  <View style={[styles.summaryItem, emphasized && styles.summaryProfitItem]}>
+    <Text style={[styles.summaryLabel, emphasized && styles.summaryProfitLabel]}>{label}</Text>
+    <Text style={[styles.summaryValue, emphasized && styles.summaryProfitValue, { color }]}>{formatRupees(value)}</Text>
   </View>
 );
 
 const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.lightBg,
   },
   contentContainer: {
-    padding: SPACING.md,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.lg,
     paddingBottom: SPACING.xxl,
   },
-  title: {
-    color: COLORS.darkText,
-    fontSize: TYPOGRAPHY.fontSize.h2,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    marginBottom: SPACING.md,
-    textAlign: 'center',
+  screenContent: {
+    width: '100%',
+    maxWidth: 640,
   },
   monthNavigation: {
     alignItems: 'center',
     flexDirection: 'row',
+    gap: SPACING.sm,
     justifyContent: 'space-between',
-    marginBottom: SPACING.md,
   },
   navButton: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: BORDER_RADIUS.sm,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-  },
-  navButtonActive: {
     backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.full,
+    alignItems: 'center',
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
   },
-  navButtonText: {
-    color: COLORS.darkText,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+  disabledNavButton: {
+    backgroundColor: COLORS.lightText,
+  },
+  chevronShape: {
+    borderColor: COLORS.lightBg,
+    borderRightWidth: 2,
+    borderTopWidth: 2,
+    height: 9,
+    transform: [{ rotate: '45deg' }],
+    width: 9,
+  },
+  previousChevron: {
+    transform: [{ rotate: '-135deg' }],
   },
   currentMonthButton: {
-    backgroundColor: COLORS.secondary,
     borderRadius: BORDER_RADIUS.sm,
+    alignSelf: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    marginBottom: SPACING.md,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-  },
-  currentMonthButtonDisabled: {
-    opacity: 0.5,
   },
   currentMonthButtonText: {
-    color: COLORS.lightBg,
+    color: COLORS.primary,
+    fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
+  },
+  disabledCurrentMonthText: {
+    color: COLORS.mediumText,
   },
   selectedMonth: {
     color: COLORS.darkText,
-    fontSize: TYPOGRAPHY.fontSize.h3,
+    flex: 1,
+    flexShrink: 1,
+    fontSize: TYPOGRAPHY.fontSize.h2,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    marginBottom: SPACING.md,
     textAlign: 'center',
   },
   summary: {
     backgroundColor: COLORS.cardBg,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.lg,
-    padding: SPACING.md,
+    padding: SPACING.sm,
+    ...SHADOWS.sm,
   },
   summaryItem: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: 44,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
+  },
+  summaryProfitItem: {
+    backgroundColor: COLORS.lightBg,
+    borderLeftColor: COLORS.primary,
+    borderLeftWidth: 4,
+    borderRadius: BORDER_RADIUS.sm,
+    marginTop: SPACING.xs,
+    paddingLeft: SPACING.md,
   },
   summaryLabel: {
     color: COLORS.mediumText,
+    flexShrink: 1,
     fontSize: TYPOGRAPHY.fontSize.body,
   },
-  summaryValue: {
-    fontSize: TYPOGRAPHY.fontSize.body,
+  summaryProfitLabel: {
+    color: COLORS.darkText,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
-  loader: {
-    marginVertical: SPACING.md,
+  summaryValue: {
+    flexShrink: 0,
+    fontSize: TYPOGRAPHY.fontSize.body,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    marginLeft: SPACING.sm,
+    textAlign: 'right',
+  },
+  summaryProfitValue: {
+    fontSize: TYPOGRAPHY.fontSize.h4,
+  },
+  summaryEquation: {
+    color: COLORS.mediumText,
+    fontSize: TYPOGRAPHY.fontSize.caption,
+    paddingHorizontal: SPACING.sm,
+    paddingTop: SPACING.xs,
+    textAlign: 'right',
+  },
+  loadingState: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+  },
+  loadingText: {
+    color: COLORS.mediumText,
+    fontSize: TYPOGRAPHY.fontSize.body,
+  },
+  errorBanner: {
+    backgroundColor: `${COLORS.error}15`,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
   },
   errorText: {
     color: COLORS.error,
-    fontSize: TYPOGRAPHY.fontSize.caption,
-    marginBottom: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.body,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   form: {
     backgroundColor: COLORS.cardBg,
     borderRadius: BORDER_RADIUS.md,
+    borderLeftWidth: 4,
     marginBottom: SPACING.lg,
     padding: SPACING.md,
+    ...SHADOWS.sm,
+  },
+  profitForm: {
+    borderLeftColor: COLORS.profit,
+  },
+  expenseForm: {
+    borderLeftColor: COLORS.expense,
   },
   formTitle: {
     color: COLORS.darkText,
     fontSize: TYPOGRAPHY.fontSize.h4,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  inputLabel: {
+    color: COLORS.darkText,
+    fontSize: TYPOGRAPHY.fontSize.body,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    marginTop: SPACING.sm,
   },
   dateRow: {
     alignItems: 'center',
     flexDirection: 'row',
+    gap: SPACING.sm,
     justifyContent: 'space-between',
     marginBottom: SPACING.sm,
   },
@@ -423,19 +603,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.full,
-    height: 30,
+    height: 48,
     justifyContent: 'center',
-    width: 30,
-  },
-  dateChangeText: {
-    color: COLORS.lightBg,
-    fontSize: TYPOGRAPHY.fontSize.body,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    width: 48,
   },
   dateText: {
     color: COLORS.darkText,
+    flex: 1,
+    flexShrink: 1,
     fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
+    textAlign: 'center',
   },
   input: {
     backgroundColor: COLORS.lightBg,
@@ -444,38 +622,47 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: COLORS.darkText,
     fontSize: TYPOGRAPHY.fontSize.body,
-    marginTop: SPACING.sm,
+    minHeight: 48,
+    marginTop: SPACING.xs,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
   },
   formActions: {
     flexDirection: 'row',
     gap: SPACING.sm,
-    justifyContent: 'flex-end',
     marginTop: SPACING.md,
   },
   cancelButton: {
+    alignItems: 'center',
     borderColor: COLORS.mediumText,
     borderRadius: BORDER_RADIUS.sm,
     borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 48,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
   },
   cancelButtonText: {
     color: COLORS.mediumText,
+    fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   saveButton: {
+    alignItems: 'center',
     backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.sm,
-    minWidth: 80,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 48,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+  },
+  disabledSaveButton: {
+    opacity: 0.7,
   },
   saveButtonText: {
     color: COLORS.lightBg,
+    fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    textAlign: 'center',
   },
   section: {
     marginBottom: SPACING.lg,
@@ -486,37 +673,90 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: SPACING.sm,
   },
+  sectionHeading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 1,
+    gap: SPACING.sm,
+  },
+  sectionMark: {
+    borderRadius: BORDER_RADIUS.full,
+    height: 10,
+    width: 10,
+  },
+  profitMark: {
+    backgroundColor: COLORS.profit,
+  },
+  expenseMark: {
+    backgroundColor: COLORS.expense,
+  },
   sectionTitle: {
-    color: COLORS.darkText,
     fontSize: TYPOGRAPHY.fontSize.h3,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
+  profitTitle: {
+    color: COLORS.profit,
+  },
+  expenseTitle: {
+    color: COLORS.expense,
+  },
   addButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.sm,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.md,
+    justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 88,
+    paddingHorizontal: SPACING.md,
+  },
+  profitAddButton: {
+    backgroundColor: COLORS.profit,
+  },
+  expenseAddButton: {
+    backgroundColor: COLORS.expense,
   },
   addButtonText: {
     color: COLORS.lightBg,
-    fontSize: TYPOGRAPHY.fontSize.caption,
+    fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
+  },
+  emptyState: {
+    backgroundColor: COLORS.cardBg,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+  },
+  emptyTitle: {
+    color: COLORS.darkText,
+    fontSize: TYPOGRAPHY.fontSize.body,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   emptyText: {
     color: COLORS.mediumText,
-    fontSize: TYPOGRAPHY.fontSize.body,
-    paddingVertical: SPACING.md,
+    fontSize: TYPOGRAPHY.fontSize.caption,
+    marginTop: SPACING.xs,
   },
   recordRow: {
     alignItems: 'center',
-    borderBottomColor: COLORS.dividerColor,
-    borderBottomWidth: 1,
+    backgroundColor: COLORS.lightBg,
+    borderColor: COLORS.dividerColor,
+    borderRadius: BORDER_RADIUS.md,
+    borderLeftWidth: 3,
+    borderWidth: 1,
     flexDirection: 'row',
+    gap: SPACING.sm,
     justifyContent: 'space-between',
-    paddingVertical: SPACING.md,
+    marginBottom: SPACING.sm,
+    padding: SPACING.sm,
+    ...SHADOWS.sm,
+  },
+  profitRecord: {
+    borderLeftColor: COLORS.profit,
+  },
+  expenseRecord: {
+    borderLeftColor: COLORS.expense,
   },
   recordDetails: {
     flex: 1,
+    minWidth: 0,
   },
   recordDate: {
     color: COLORS.mediumText,
@@ -527,23 +767,34 @@ const styles = StyleSheet.create({
     color: COLORS.darkText,
     fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
+    flexShrink: 1,
   },
   recordAmount: {
-    color: COLORS.mediumText,
-    fontSize: TYPOGRAPHY.fontSize.caption,
+    fontSize: TYPOGRAPHY.fontSize.h4,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
     marginTop: SPACING.xs,
+  },
+  profitAmount: {
+    color: COLORS.profit,
+  },
+  expenseAmount: {
+    color: COLORS.expense,
   },
   recordActions: {
     flexDirection: 'row',
-    marginLeft: SPACING.sm,
+    flexShrink: 0,
+    gap: SPACING.xs,
   },
   actionButton: {
-    marginLeft: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 52,
+    paddingHorizontal: SPACING.xs,
   },
   actionText: {
     color: COLORS.primary,
-    fontSize: TYPOGRAPHY.fontSize.caption,
+    fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   deleteText: {
