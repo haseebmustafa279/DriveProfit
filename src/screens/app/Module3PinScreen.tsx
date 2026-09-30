@@ -1,6 +1,9 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -40,66 +43,96 @@ export const Module3PinScreen: React.FC<{ navigation: any }> = ({ navigation }) 
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Secure Access</Text>
-      <Text style={styles.description}>Enter your PIN to open the car payment tracker.</Text>
-      <TextInput
-        accessibilityLabel="Module 3 PIN"
-        autoFocus
-        keyboardType="number-pad"
-        maxLength={APP_CONSTANTS.MAX_PIN_LENGTH}
-        onChangeText={value => {
-          setPin(value.replace(/[^0-9]/g, ''));
-          setError(null);
-        }}
-        secureTextEntry
-        style={styles.input}
-        value={pin}
-      />
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-      <TouchableOpacity disabled={isVerifying} onPress={handleVerify} style={styles.button}>
-        {isVerifying ? <ActivityIndicator color={COLORS.lightBg} /> : <Text style={styles.buttonText}>Verify PIN</Text>}
-      </TouchableOpacity>
-    </View>
+    <KeyboardAvoidingView
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>Secure Access</Text>
+          <Text style={styles.description}>Enter your PIN to open the car payment tracker.</Text>
+          <TextInput
+            accessibilityLabel="Module 3 PIN"
+            accessibilityHint={`Enter your ${APP_CONSTANTS.PIN_LENGTH} to ${APP_CONSTANTS.MAX_PIN_LENGTH} digit PIN. Input is hidden.`}
+            autoFocus
+            keyboardType="number-pad"
+            maxLength={APP_CONSTANTS.MAX_PIN_LENGTH}
+            onChangeText={value => {
+              setPin(value.replace(/[^0-9]/g, ''));
+              setError(null);
+            }}
+            secureTextEntry
+            style={styles.input}
+            value={pin}
+          />
+          {error ? <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text> : null}
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={isVerifying ? 'Verifying PIN' : 'Verify PIN'}
+            accessibilityState={{ disabled: isVerifying, busy: isVerifying }}
+            disabled={isVerifying}
+            onPress={handleVerify}
+            style={styles.button}
+          >
+            {isVerifying ? <ActivityIndicator color={COLORS.lightBg} /> : <Text style={styles.buttonText}>Verify PIN</Text>}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: COLORS.lightBg,
+  keyboardContainer: {
     flex: 1,
+  },
+  container: {
+    alignItems: 'center',
+    backgroundColor: COLORS.lightBg,
+    flexGrow: 1,
     justifyContent: 'center',
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xl,
+  },
+  content: {
+    width: '100%',
+    maxWidth: 420,
   },
   title: {
     color: COLORS.darkText,
     fontSize: TYPOGRAPHY.fontSize.h2,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
     textAlign: 'center',
   },
   description: {
     color: COLORS.mediumText,
     fontSize: TYPOGRAPHY.fontSize.body,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
     textAlign: 'center',
   },
   input: {
     alignSelf: 'center',
     borderColor: COLORS.dividerColor,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
     color: COLORS.darkText,
     fontSize: TYPOGRAPHY.fontSize.h3,
     letterSpacing: 8,
-    padding: SPACING.md,
+    minHeight: 56,
+    paddingHorizontal: SPACING.lg,
     textAlign: 'center',
-    width: 180,
+    width: '100%',
+    maxWidth: 240,
   },
   errorText: {
     color: COLORS.error,
-    fontSize: TYPOGRAPHY.fontSize.caption,
-    marginTop: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.body,
+    marginTop: SPACING.md,
     textAlign: 'center',
   },
   button: {
@@ -107,12 +140,15 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.sm,
-    marginTop: SPACING.lg,
-    minWidth: 140,
-    padding: SPACING.md,
+    justifyContent: 'center',
+    marginTop: SPACING.xl,
+    minHeight: 52,
+    minWidth: 180,
+    paddingHorizontal: SPACING.lg,
   },
   buttonText: {
     color: COLORS.lightBg,
+    fontSize: TYPOGRAPHY.fontSize.body,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
 });
